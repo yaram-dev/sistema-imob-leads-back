@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Empreendimento {
+  id   String @id @default(uuid())
+  slug String @unique
+  nome String
+
+  tipoId String
+  tipo   Tipo   @relation(fields: [tipoId], references: [id])
+
+  localizacaoId String
+  localizacao   Localizacao @relation(fields: [localizacaoId], references: [id])
+
+  preco      String?
+  descricao  Json
+  imagem     Json
+  imagemCapa String?
+
+  createdAt DateTime @default(now())
+
+  leads  Lead[]
+  vendas Venda[]
+
+  @@map("empreendimento")
+}
+
+model Tipo {
+  id              String           @id @default(uuid())
+  nome            String           @unique
+  empreendimentos Empreendimento[]
+  createdAt       DateTime         @default(now())
+
+  @@map("tipo")
+}
+
+model Localizacao {
+  id              String           @id @default(uuid())
+  nome            String           @unique
+  empreendimentos Empreendimento[]
+  createdAt       DateTime         @default(now())
+
+  @@map("localizacao")
+}
+
+model FaixaInvestimento {
+  id          String   @id @default(uuid())
+  nome        String   @unique
+  valorMaximo Int?
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@map("faixainvestimento")
+}
+
+model PrazoCompra {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("prazocompra")
+}
+
+enum LeadStatus {
+  NOVO
+  EM_CONTATO
+  NEGOCIANDO
+  ADQUIRIDO
+  PERDIDO
+
+  @@map("lead_status")
+}
+
+enum LeadOrigem {
+  HOME_FORMULARIO
+  HOME_BOTAO
+  EMPREENDIMENTO
+  CADASTRO_MANUAL
+  INDICACAO
+  WHATSAPP
+  INSTAGRAM
+  OUTRO
+
+  @@map("lead_origem")
+}
+
+enum AcompanhamentoTipo {
+  LIGACAO
+  WHATSAPP
+  VISITA
+  REUNIAO
+  PROPOSTA
+  FOLLOW_UP
+  OUTRO
+}
+
+enum AcompanhamentoStatus {
+  PENDENTE
+  CONCLUIDO
+  CANCELADO
+}
+
+model Lead {
+  id String @id @default(uuid())
+
+  nome     String
+  whatsapp String
+  email    String?
+  cidade   String?
+  regiao   String?
+
+  tipoImovel        String?
+  faixaInvestimento String?
+  prazo             String?
+  mensagem          String?
+
+  empreendimentoId    String?
+  outroEmpreendimento String?
+
+  empreendimento Empreendimento? @relation(fields: [empreendimentoId], references: [id])
+
+  acompanhamentos Acompanhamento[]
+  vendas          Venda[]
+
+  status LeadStatus @default(NOVO)
+  origem LeadOrigem @default(HOME_FORMULARIO)
+
+  createdAt DateTime @default(now())
+
+  @@index([empreendimentoId])
+  @@map("lead")
+}
+
+model Acompanhamento {
+  id String @id @default(uuid())
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  tipo   AcompanhamentoTipo
+  status AcompanhamentoStatus @default(PENDENTE)
+
+  data      DateTime
+  titulo    String
+  descricao String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+}
+
+model Usuario {
+  id                  String               @id @default(uuid())
+  nome                String
+  email               String               @unique
+  emailRecuperacao    String?
+  senhaHash           String
+  passwordResetTokens PasswordResetToken[]
+  createdAt           DateTime             @default(now())
+
+  @@map("usuario")
+}
+
+enum VendaStatus {
+  ATIVA
+  CONCLUIDA
+  CANCELADA
+
+  @@map("venda_status")
+}
+
+enum VendaTipo {
+  IMOBILIARIA
+  AVULSA
+
+  @@map("venda_tipo")
+}
+
+model Venda {
+  id String @id @default(uuid())
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id])
+
+  empreendimentoId String?
+  empreendimento   Empreendimento? @relation(fields: [empreendimentoId], references: [id])
+
+  dataVenda DateTime
+
+  valorTabela Decimal @db.Decimal(15, 2)
+  valorVenda  Decimal @db.Decimal(15, 2)
+
+  tipoVenda VendaTipo @default(AVULSA)
+
+  contratoNome String?
+  contratoUrl  String?
+  observacao   String?
+
+  status VendaStatus @default(ATIVA)
+
+  comissao Comissao?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([empreendimentoId])
+  @@map("venda")
+}
+
+model Comissao {
+  id String @id @default(uuid())
+
+  vendaId String @unique
+  venda   Venda  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  percentualImobiliaria Decimal? @db.Decimal(5, 2)
+  valorImobiliaria      Decimal? @db.Decimal(15, 2)
+
+  percentualCorretora Decimal? @db.Decimal(5, 2)
+  valorCorretora      Decimal? @db.Decimal(15, 2)
+
+  valorTotal Decimal @db.Decimal(15, 2)
+
+  observacao String?
+
+  recebimentos RecebimentoComissao[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("comissao")
+}
+
+enum RecebimentoComissaoStatus {
+  PENDENTE
+  PAGA
+  ATRASADA
+  CANCELADA
+
+  @@map("recebimentocomissao_status")
+}
+
+model RecebimentoComissao {
+  id String @id @default(uuid())
+
+  comissaoId String
+  comissao   Comissao @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
+
+  numero     Int
+  valor      Decimal  @db.Decimal(15, 2)
+  vencimento DateTime
+
+  status RecebimentoComissaoStatus @default(PENDENTE)
+
+  dataRecebimento DateTime?
+
+  observacao String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([comissaoId, numero])
+  @@index([comissaoId])
+  @@index([vencimento])
+  @@index([status])
+  @@map("recebimentocomissao")
+}
+
+model PasswordResetToken {
+  id        String  @id @default(uuid())
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([expiresAt])
+  @@map("password_reset_token")
+}

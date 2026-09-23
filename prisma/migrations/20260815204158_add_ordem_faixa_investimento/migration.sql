@@ -1,0 +1,1 @@
+ALTER TABLE `faixainvestimento` ADD COLUMN `ordem` INTEGER NOT NULL DEFAULT 0;

@@ -1,0 +1,15 @@
+CREATE TABLE `Acompanhamento` (
+    `id` VARCHAR(191) NOT NULL,
+    `leadId` VARCHAR(191) NOT NULL,
+    `tipo` ENUM('LIGACAO', 'WHATSAPP', 'VISITA', 'REUNIAO', 'PROPOSTA', 'FOLLOW_UP', 'OUTRO') NOT NULL,
+    `status` ENUM('PENDENTE', 'CONCLUIDO', 'CANCELADO') NOT NULL DEFAULT 'PENDENTE',
+    `data` DATETIME(3) NOT NULL,
+    `titulo` VARCHAR(191) NOT NULL,
+    `descricao` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `Acompanhamento` ADD CONSTRAINT `Acompanhamento_leadId_fkey` FOREIGN KEY (`leadId`) REFERENCES `lead`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
