@@ -113,27 +113,17 @@ export async function solicitarRecuperacaoSenhaController(
   req: Request,
   res: Response,
 ) {
-  console.log(">>> CHEGOU NO CONTROLLER DE RECUPERAÇÃO");
-
   const validacao = solicitarRecuperacaoSenhaSchema.safeParse(req.body);
 
   if (!validacao.success) {
-    console.log(">>> ERRO NA VALIDAÇÃO:", validacao.error.flatten());
-
     return res.status(400).json({
       message: "Dados inválidos.",
       errors: validacao.error.flatten().fieldErrors,
     });
   }
 
-  console.log(">>> E-MAIL RECEBIDO:", validacao.data.email);
-
   try {
-    console.log(">>> CHAMANDO SERVICE DE RECUPERAÇÃO");
-
     const resultado = await solicitarRecuperacaoSenha(validacao.data.email);
-
-    console.log(">>> SERVICE FINALIZOU");
 
     return res.json({
       message: resultado.message,

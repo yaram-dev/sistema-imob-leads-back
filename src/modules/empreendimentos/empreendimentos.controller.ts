@@ -11,10 +11,40 @@ import { createSlug } from "../../utils/createSlug";
 const safeSlug = (slug: string | string[]) =>
   Array.isArray(slug) ? slug[0] : slug;
 
-export const getAll = async (req: Request, res: Response) => {
+function parseImagensExistentes(valor: unknown): string[] {
+  if (!valor) return [];
+
+  if (Array.isArray(valor)) {
+    return valor.filter(
+      (imagem): imagem is string => typeof imagem === "string",
+    );
+  }
+
+  if (typeof valor !== "string") {
+    throw new Error("As imagens existentes possuem formato inválido.");
+  }
+
+  try {
+    const imagens = JSON.parse(valor);
+
+    if (!Array.isArray(imagens)) {
+      throw new Error("As imagens existentes possuem formato inválido.");
+    }
+
+    if (!imagens.every((imagem) => typeof imagem === "string")) {
+      throw new Error("As imagens existentes possuem formato inválido.");
+    }
+
+    return imagens;
+  } catch {
+    throw new Error("As imagens existentes possuem formato inválido.");
+  }
+}
+
+export const getAll = async (_req: Request, res: Response) => {
   const empreendimentos = await service.getAll();
 
-  res.json(empreendimentos);
+  return res.json(empreendimentos);
 };
 
 export const getBySlug = async (req: Request, res: Response) => {
@@ -26,7 +56,7 @@ export const getBySlug = async (req: Request, res: Response) => {
     });
   }
 
-  res.json(item);
+  return res.json(item);
 };
 
 export const create = async (req: Request, res: Response) => {
@@ -34,29 +64,22 @@ export const create = async (req: Request, res: Response) => {
 
   const validacao = createEmpreendimentoSchema.safeParse({
     nome: req.body.nome,
-
     tipoId: req.body.tipoId,
-
     localizacaoId: req.body.localizacaoId,
-
     preco: req.body.preco,
-
     descricao,
-
     imagem: [],
-
     imagemCapa: req.body.imagemCapa,
   });
 
   if (!validacao.success) {
     return res.status(400).json({
       message: "Dados inválidos.",
-
       errors: validacao.error.flatten().fieldErrors,
     });
   }
 
-  const files = (req.files as Express.Multer.File[]) || [];
+  const files = Array.isArray((req as any).files) ? (req as any).files : [];
 
   const imagem = await uploadImages(files);
 
@@ -64,65 +87,65 @@ export const create = async (req: Request, res: Response) => {
 
   const newItem = await service.create({
     ...validacao.data,
-
     slug,
-
     imagem,
-
     imagemCapa: req.body.imagemCapa,
   });
 
-  res.status(201).json(newItem);
+  return res.status(201).json(newItem);
 };
 
 export const update = async (req: Request, res: Response) => {
-  const files = (req.files as Express.Multer.File[]) || [];
+  let imagensExistentes: string[];
 
-  const novasImagens = await uploadImages(files);
-
-  const imagensExistentes = JSON.parse(req.body.imagem || "[]");
-
-  const imagensFinal = [...imagensExistentes, ...novasImagens];
+  try {
+    imagensExistentes = parseImagensExistentes(req.body.imagem);
+  } catch (error) {
+    return res.status(400).json({
+      message:
+        error instanceof Error
+          ? error.message
+          : "As imagens existentes possuem formato inválido.",
+    });
+  }
 
   const descricao = parseDescricao(req.body.descricao);
 
   const validacao = updateEmpreendimentoSchema.safeParse({
     nome: req.body.nome,
-
     tipoId: req.body.tipoId,
-
     localizacaoId: req.body.localizacaoId,
-
     preco: req.body.preco,
-
     descricao,
-
-    imagem: imagensFinal,
-
+    imagem: imagensExistentes,
     imagemCapa: req.body.imagemCapa,
   });
 
   if (!validacao.success) {
     return res.status(400).json({
       message: "Dados inválidos.",
-
       errors: validacao.error.flatten().fieldErrors,
     });
   }
 
-  const item = await service.update(
-    safeSlug(req.params.slug),
+  const files = Array.isArray((req as any).files) ? (req as any).files : [];
 
-    validacao.data,
-  );
+  const novasImagens = await uploadImages(files);
 
-  res.json(item);
+  const imagensFinal = [...imagensExistentes, ...novasImagens];
+
+  const item = await service.update(safeSlug(req.params.slug), {
+    ...validacao.data,
+    imagem: imagensFinal,
+  });
+
+  return res.json(item);
 };
 
 export const remove = async (req: Request, res: Response) => {
   await service.remove(safeSlug(req.params.slug));
 
-  res.json({
+  return res.json({
     message: "Removido com sucesso",
   });
 };

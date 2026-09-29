@@ -22,6 +22,9 @@ if (jwtSecret.length < 32) {
 
 const secret = new TextEncoder().encode(jwtSecret);
 
+const MENSAGEM_RECUPERACAO =
+  "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.";
+
 export async function login(email: string, senha: string) {
   const usuario = await prisma.usuario.findUnique({
     where: {
@@ -96,14 +99,23 @@ export async function alterarSenha(
 
   const novaSenhaHash = await bcrypt.hash(novaSenha, 12);
 
-  await prisma.usuario.update({
-    where: {
-      id: usuarioId,
-    },
-    data: {
-      senhaHash: novaSenhaHash,
-    },
-  });
+  await prisma.$transaction([
+    prisma.usuario.update({
+      where: {
+        id: usuarioId,
+      },
+      data: {
+        senhaHash: novaSenhaHash,
+      },
+    }),
+
+    prisma.passwordResetToken.deleteMany({
+      where: {
+        usuarioId,
+        usedAt: null,
+      },
+    }),
+  ]);
 
   return {
     message: "Senha alterada com sucesso.",
@@ -115,8 +127,6 @@ function gerarHashToken(token: string) {
 }
 
 export async function solicitarRecuperacaoSenha(email: string) {
-  console.log(">>> ENTREI NO SERVICE DE RECUPERAÇÃO");
-
   const usuario = await prisma.usuario.findFirst({
     where: {
       emailRecuperacao: email,
@@ -124,20 +134,10 @@ export async function solicitarRecuperacaoSenha(email: string) {
   });
 
   if (!usuario) {
-    console.log(">>> E-MAIL DE RECUPERAÇÃO NÃO ENCONTRADO");
-
     return {
-      message:
-        "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.",
+      message: MENSAGEM_RECUPERACAO,
     };
   }
-
-  console.log(
-    ">>> USUÁRIO ENCONTRADO:",
-    usuario.email,
-    "| RECUPERAÇÃO:",
-    usuario.emailRecuperacao,
-  );
 
   await prisma.passwordResetToken.deleteMany({
     where: {
@@ -145,8 +145,6 @@ export async function solicitarRecuperacaoSenha(email: string) {
       usedAt: null,
     },
   });
-
-  console.log(">>> TOKENS ANTERIORES REMOVIDOS");
 
   const token = randomBytes(32).toString("hex");
 
@@ -162,8 +160,6 @@ export async function solicitarRecuperacaoSenha(email: string) {
     },
   });
 
-  console.log(">>> TOKEN DE RECUPERAÇÃO CRIADO NO BANCO");
-
   try {
     if (!usuario.emailRecuperacao) {
       throw new AppError(
@@ -172,20 +168,9 @@ export async function solicitarRecuperacaoSenha(email: string) {
       );
     }
 
-    console.log(
-      ">>> ANTES DE CHAMAR O EMAIL SERVICE:",
-      usuario.emailRecuperacao,
-    );
-
-    const resultadoEmail = await enviarEmailRecuperacaoSenha(
-      usuario.emailRecuperacao,
-      token,
-    );
-
-    console.log(">>> DEPOIS DE CHAMAR O EMAIL SERVICE");
-    console.log(">>> RESULTADO DO EMAIL:", resultadoEmail);
+    await enviarEmailRecuperacaoSenha(usuario.emailRecuperacao, token);
   } catch (error) {
-    console.error(">>> ERRO NO ENVIO DO EMAIL:", error);
+    console.error("ERRO AO ENVIAR E-MAIL DE RECUPERAÇÃO:", error);
 
     await prisma.passwordResetToken.deleteMany({
       where: {
@@ -194,14 +179,13 @@ export async function solicitarRecuperacaoSenha(email: string) {
       },
     });
 
-    throw error;
+    return {
+      message: MENSAGEM_RECUPERACAO,
+    };
   }
 
-  console.log(">>> SERVICE DE RECUPERAÇÃO TERMINOU");
-
   return {
-    message:
-      "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.",
+    message: MENSAGEM_RECUPERACAO,
   };
 }
 

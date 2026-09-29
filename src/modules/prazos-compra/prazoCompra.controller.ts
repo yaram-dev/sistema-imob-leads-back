@@ -26,17 +26,31 @@ export const getById = async (req: Request, res: Response) => {
 };
 
 export const create = async (req: Request, res: Response) => {
-  const data = criarPrazoCompraSchema.parse(req.body);
+  const validacao = criarPrazoCompraSchema.safeParse(req.body);
 
-  const prazo = await service.create(data);
+  if (!validacao.success) {
+    return res.status(400).json({
+      message: "Dados inválidos.",
+      errors: validacao.error.flatten().fieldErrors,
+    });
+  }
+
+  const prazo = await service.create(validacao.data);
 
   return res.status(201).json(prazo);
 };
 
 export const update = async (req: Request, res: Response) => {
-  const data = atualizarPrazoCompraSchema.parse(req.body);
+  const validacao = atualizarPrazoCompraSchema.safeParse(req.body);
 
-  const prazo = await service.update(safeId(req.params.id), data);
+  if (!validacao.success) {
+    return res.status(400).json({
+      message: "Dados inválidos.",
+      errors: validacao.error.flatten().fieldErrors,
+    });
+  }
+
+  const prazo = await service.update(safeId(req.params.id), validacao.data);
 
   return res.json(prazo);
 };

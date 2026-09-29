@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
+
 import * as service from "./faixaInvestimento.service";
+
 import {
   criarFaixaInvestimentoSchema,
   atualizarFaixaInvestimentoSchema,
@@ -26,17 +28,31 @@ export const getById = async (req: Request, res: Response) => {
 };
 
 export const create = async (req: Request, res: Response) => {
-  const data = criarFaixaInvestimentoSchema.parse(req.body);
+  const validacao = criarFaixaInvestimentoSchema.safeParse(req.body);
 
-  const faixa = await service.create(data);
+  if (!validacao.success) {
+    return res.status(400).json({
+      message: "Dados inválidos.",
+      errors: validacao.error.flatten().fieldErrors,
+    });
+  }
+
+  const faixa = await service.create(validacao.data);
 
   return res.status(201).json(faixa);
 };
 
 export const update = async (req: Request, res: Response) => {
-  const data = atualizarFaixaInvestimentoSchema.parse(req.body);
+  const validacao = atualizarFaixaInvestimentoSchema.safeParse(req.body);
 
-  const faixa = await service.update(safeId(req.params.id), data);
+  if (!validacao.success) {
+    return res.status(400).json({
+      message: "Dados inválidos.",
+      errors: validacao.error.flatten().fieldErrors,
+    });
+  }
+
+  const faixa = await service.update(safeId(req.params.id), validacao.data);
 
   return res.json(faixa);
 };

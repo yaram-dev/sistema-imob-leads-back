@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { PrismaClient } from "../generated/prisma";
+
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 const adapter = new PrismaMariaDb({
@@ -11,7 +12,9 @@ const adapter = new PrismaMariaDb({
   database: process.env.DB_NAME!,
   connectionLimit: 5,
   connectTimeout: 5000,
+  allowPublicKeyRetrieval: true,
 });
+
 export const prisma = new PrismaClient({
   adapter,
 });
