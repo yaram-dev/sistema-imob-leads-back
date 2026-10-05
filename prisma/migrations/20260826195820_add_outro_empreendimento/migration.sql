@@ -1,1 +1,1 @@
-ALTER TABLE `lead` ADD COLUMN `outroEmpreendimento` VARCHAR(191) NULL;
+ALTER TABLE `Lead` ADD COLUMN `outroEmpreendimento` VARCHAR(191) NULL;

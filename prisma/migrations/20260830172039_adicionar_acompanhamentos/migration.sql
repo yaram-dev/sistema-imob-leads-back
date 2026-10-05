@@ -12,4 +12,4 @@ CREATE TABLE `Acompanhamento` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-ALTER TABLE `Acompanhamento` ADD CONSTRAINT `Acompanhamento_leadId_fkey` FOREIGN KEY (`leadId`) REFERENCES `lead`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Acompanhamento` ADD CONSTRAINT `Acompanhamento_leadId_fkey` FOREIGN KEY (`leadId`) REFERENCES `Lead`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
