@@ -1,0 +1,2 @@
+ALTER TABLE usuario
+ADD COLUMN emailRecuperacao VARCHAR(191) NULL;
