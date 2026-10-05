@@ -1,1 +1,1 @@
-ALTER TABLE `faixainvestimento` ADD COLUMN `valorMaximo` INTEGER NULL;
+ALTER TABLE `FaixaInvestimento` ADD COLUMN `valorMaximo` INTEGER NULL;
