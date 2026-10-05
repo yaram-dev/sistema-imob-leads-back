@@ -1,4 +1,4 @@
-ALTER TABLE `empreendimento` DROP COLUMN `local`,
+ALTER TABLE `Empreendimento` DROP COLUMN `local`,
     ADD COLUMN `localizacaoId` VARCHAR(191) NOT NULL;
 
 CREATE TABLE `Localizacao` (
