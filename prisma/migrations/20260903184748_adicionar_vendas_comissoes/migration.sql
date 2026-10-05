@@ -1,4 +1,3 @@
--- CreateTable
 CREATE TABLE `venda` (
     `id` VARCHAR(191) NOT NULL,
     `leadId` VARCHAR(191) NOT NULL,
@@ -18,7 +17,6 @@ CREATE TABLE `venda` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `comissao` (
     `id` VARCHAR(191) NOT NULL,
     `vendaId` VARCHAR(191) NOT NULL,
@@ -32,7 +30,6 @@ CREATE TABLE `comissao` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
 CREATE TABLE `recebimentocomissao` (
     `id` VARCHAR(191) NOT NULL,
     `comissaoId` VARCHAR(191) NOT NULL,
@@ -52,20 +49,34 @@ CREATE TABLE `recebimentocomissao` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- AddForeignKey
-ALTER TABLE `venda` ADD CONSTRAINT `venda_leadId_fkey` FOREIGN KEY (`leadId`) REFERENCES `lead`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `venda`
+ADD CONSTRAINT `venda_leadId_fkey`
+FOREIGN KEY (`leadId`)
+REFERENCES `lead`(`id`)
+ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE `venda` ADD CONSTRAINT `venda_empreendimentoId_fkey` FOREIGN KEY (`empreendimentoId`) REFERENCES `empreendimento`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `venda`
+ADD CONSTRAINT `venda_empreendimentoId_fkey`
+FOREIGN KEY (`empreendimentoId`)
+REFERENCES `empreendimento`(`id`)
+ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE `comissao` ADD CONSTRAINT `comissao_vendaId_fkey` FOREIGN KEY (`vendaId`) REFERENCES `venda`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `comissao`
+ADD CONSTRAINT `comissao_vendaId_fkey`
+FOREIGN KEY (`vendaId`)
+REFERENCES `venda`(`id`)
+ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE `recebimentocomissao` ADD CONSTRAINT `recebimentocomissao_comissaoId_fkey` FOREIGN KEY (`comissaoId`) REFERENCES `comissao`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `recebimentocomissao`
+ADD CONSTRAINT `recebimentocomissao_comissaoId_fkey`
+FOREIGN KEY (`comissaoId`)
+REFERENCES `comissao`(`id`)
+ON DELETE CASCADE ON UPDATE CASCADE;
 
--- RenameIndex
-ALTER TABLE `acompanhamento` RENAME INDEX `Acompanhamento_leadId_fkey` TO `Acompanhamento_leadId_idx`;
+ALTER TABLE `Acompanhamento`
+RENAME INDEX `Acompanhamento_leadId_fkey`
+TO `Acompanhamento_leadId_idx`;
 
--- RenameIndex
-ALTER TABLE `lead` RENAME INDEX `lead_empreendimentoId_fkey` TO `lead_empreendimentoId_idx`;
+ALTER TABLE `lead`
+RENAME INDEX `lead_empreendimentoId_fkey`
+TO `lead_empreendimentoId_idx`;

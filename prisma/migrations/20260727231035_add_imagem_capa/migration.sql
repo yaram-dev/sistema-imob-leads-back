@@ -1,1 +1,1 @@
-ALTER TABLE `empreendimento` ADD COLUMN `imagemCapa` VARCHAR(191) NULL;
+ALTER TABLE `Empreendimento` ADD COLUMN `imagemCapa` VARCHAR(191) NULL;

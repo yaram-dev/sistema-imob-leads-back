@@ -1,4 +1,3 @@
--- CreateTable
 CREATE TABLE `password_reset_token` (
     `id` VARCHAR(191) NOT NULL,
     `usuarioId` VARCHAR(191) NOT NULL,
