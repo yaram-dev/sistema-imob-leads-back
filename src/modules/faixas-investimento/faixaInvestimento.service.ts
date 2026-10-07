@@ -20,7 +20,10 @@ export const getById = (id: string) => {
 };
 
 const formatarValor = (valor: number): string => {
-  return valor.toLocaleString("pt-BR");
+  return valor.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 const gerarNomeFaixa = (valorMaximo: number): string => {
@@ -148,9 +151,7 @@ export const update = async (
     throw new AppError("Já existe uma faixa com este valor.", 409);
   }
 
-  const valorAntigo = faixa.valorMaximo;
-
-  await prisma.faixaInvestimento.update({
+  const faixaAtualizada = await prisma.faixaInvestimento.update({
     where: {
       id,
     },
@@ -160,19 +161,11 @@ export const update = async (
     },
   });
 
-  await prisma.faixaInvestimento.create({
-    data: {
-      nome: gerarNomeFaixa(valorAntigo),
-      valorMaximo: valorAntigo,
-      ordem: 0,
-    },
-  });
-
   await reorganizarOrdens();
 
   return prisma.faixaInvestimento.findUnique({
     where: {
-      id,
+      id: faixaAtualizada.id,
     },
   });
 };
