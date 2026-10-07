@@ -19,6 +19,54 @@ export const uploadImage = (file: Express.Multer.File): Promise<string> => {
   });
 };
 
+export const deleteImage = (imageUrl: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(imageUrl);
+
+      const caminho = url.pathname;
+      const marcador = "/image/upload/";
+      const indice = caminho.indexOf(marcador);
+
+      if (indice === -1) {
+        reject(
+          new Error("Não foi possível identificar a imagem no Cloudinary."),
+        );
+        return;
+      }
+
+      let publicId = caminho.substring(indice + marcador.length);
+
+      publicId = publicId.replace(/^v\d+\//, "");
+
+      publicId = publicId.replace(/\.[^/.]+$/, "");
+
+      cloudinary.uploader.destroy(
+        publicId,
+        {
+          resource_type: "image",
+          type: "upload",
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          if (result?.result === "not found") {
+            resolve();
+            return;
+          }
+
+          resolve();
+        },
+      );
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 export const uploadContrato = (file: Express.Multer.File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const nomeBase = file.originalname
@@ -71,7 +119,6 @@ export const deleteContrato = (contratoUrl: string): Promise<void> => {
 
       let publicId = caminho.substring(indice + marcador.length);
 
-      // Remove a versão do Cloudinary, por exemplo: v1750000000/
       publicId = publicId.replace(/^v\d+\//, "");
 
       cloudinary.uploader.destroy(

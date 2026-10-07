@@ -7,11 +7,12 @@ import { prisma } from "../database/prisma";
 async function criarUsuario() {
   const nome = process.env.ADMIN_NOME;
   const email = process.env.ADMIN_EMAIL;
+  const emailRecuperacao = process.env.ADMIN_EMAIL_RECUPERACAO;
   const senha = process.env.ADMIN_SENHA;
 
-  if (!nome || !email || !senha) {
+  if (!nome || !email || !emailRecuperacao || !senha) {
     throw new Error(
-      "ADMIN_NOME, ADMIN_EMAIL e ADMIN_SENHA precisam estar configurados no .env.",
+      "ADMIN_NOME, ADMIN_EMAIL, ADMIN_EMAIL_RECUPERACAO e ADMIN_SENHA precisam estar configurados.",
     );
   }
 
@@ -37,6 +38,7 @@ async function criarUsuario() {
       data: {
         nome,
         email,
+        emailRecuperacao,
         senhaHash,
       },
     });

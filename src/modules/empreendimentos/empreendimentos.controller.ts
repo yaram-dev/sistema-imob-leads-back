@@ -5,6 +5,7 @@ import {
   updateEmpreendimentoSchema,
 } from "./empreendimentos.schema";
 import { parseDescricao } from "../../utils/parseDescricao";
+import { deleteImage, uploadImage } from "../../services/cloudinary.service";
 import { uploadImages } from "../../utils/uploadImagens";
 import { createSlug } from "../../utils/createSlug";
 
@@ -81,18 +82,41 @@ export const create = async (req: Request, res: Response) => {
 
   const files = Array.isArray((req as any).files) ? (req as any).files : [];
 
-  const imagem = await uploadImages(files);
+  let imagem: string[] = [];
 
-  const slug = createSlug(validacao.data.nome);
+  try {
+    imagem = await uploadImages(files);
 
-  const newItem = await service.create({
-    ...validacao.data,
-    slug,
-    imagem,
-    imagemCapa: req.body.imagemCapa,
-  });
+    const slug = createSlug(validacao.data.nome);
 
-  return res.status(201).json(newItem);
+    const newItem = await service.create({
+      ...validacao.data,
+      slug,
+      imagem,
+      imagemCapa: req.body.imagemCapa,
+    });
+
+    return res.status(201).json(newItem);
+  } catch (error) {
+    // Se o upload ocorreu, mas a gravação no banco falhou,
+    // remove as imagens recém-enviadas para evitar arquivos órfãos.
+    if (imagem.length > 0) {
+      await Promise.all(
+        imagem.map(async (url) => {
+          try {
+            await deleteImage(url);
+          } catch (deleteError) {
+            console.error(
+              "Erro ao remover imagem órfã do Cloudinary:",
+              deleteError,
+            );
+          }
+        }),
+      );
+    }
+
+    throw error;
+  }
 };
 
 export const update = async (req: Request, res: Response) => {
@@ -128,22 +152,107 @@ export const update = async (req: Request, res: Response) => {
     });
   }
 
+  const itemAtual = await service.getBySlug(safeSlug(req.params.slug));
+
+  if (!itemAtual) {
+    return res.status(404).json({
+      message: "Empreendimento não encontrado.",
+    });
+  }
+
+  const imagensAntigas: string[] = Array.isArray(itemAtual.imagem)
+    ? itemAtual.imagem.filter(
+        (imagem): imagem is string => typeof imagem === "string",
+      )
+    : [];
+
   const files = Array.isArray((req as any).files) ? (req as any).files : [];
 
-  const novasImagens = await uploadImages(files);
+  let novasImagens: string[] = [];
 
-  const imagensFinal = [...imagensExistentes, ...novasImagens];
+  try {
+    novasImagens = await uploadImages(files);
 
-  const item = await service.update(safeSlug(req.params.slug), {
-    ...validacao.data,
-    imagem: imagensFinal,
-  });
+    const imagensFinal = [...imagensExistentes, ...novasImagens];
 
-  return res.json(item);
+    const item = await service.update(safeSlug(req.params.slug), {
+      ...validacao.data,
+      imagem: imagensFinal,
+    });
+
+    const imagensRemovidas = imagensAntigas.filter(
+      (url) => !imagensFinal.includes(url),
+    );
+
+    if (imagensRemovidas.length > 0) {
+      await Promise.all(
+        imagensRemovidas.map(async (url) => {
+          try {
+            await deleteImage(url);
+          } catch (error) {
+            console.error(
+              "Erro ao remover imagem antiga do Cloudinary:",
+              error,
+            );
+          }
+        }),
+      );
+    }
+
+    return res.json(item);
+  } catch (error) {
+    if (novasImagens.length > 0) {
+      await Promise.all(
+        novasImagens.map(async (url) => {
+          try {
+            await deleteImage(url);
+          } catch (deleteError) {
+            console.error(
+              "Erro ao remover nova imagem órfã do Cloudinary:",
+              deleteError,
+            );
+          }
+        }),
+      );
+    }
+
+    throw error;
+  }
 };
 
 export const remove = async (req: Request, res: Response) => {
-  await service.remove(safeSlug(req.params.slug));
+  const slug = safeSlug(req.params.slug);
+
+  const item = await service.getBySlug(slug);
+
+  if (!item) {
+    return res.status(404).json({
+      message: "Empreendimento não encontrado.",
+    });
+  }
+
+  const imagens: string[] = Array.isArray(item.imagem)
+    ? item.imagem.filter(
+        (imagem): imagem is string => typeof imagem === "string",
+      )
+    : [];
+
+  await service.remove(slug);
+
+  if (imagens.length > 0) {
+    await Promise.all(
+      imagens.map(async (url) => {
+        try {
+          await deleteImage(url);
+        } catch (error) {
+          console.error(
+            "Erro ao remover imagem do empreendimento do Cloudinary:",
+            error,
+          );
+        }
+      }),
+    );
+  }
 
   return res.json({
     message: "Removido com sucesso",
