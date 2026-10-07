@@ -31,8 +31,8 @@ export async function entrar(req: Request, res: Response) {
 
     res.cookie("admin_token", resultado.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 8 * 60 * 60 * 1000,
       path: "/",
     });
@@ -58,8 +58,8 @@ export async function entrar(req: Request, res: Response) {
 export function sair(req: Request, res: Response) {
   res.clearCookie("admin_token", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
   });
 
