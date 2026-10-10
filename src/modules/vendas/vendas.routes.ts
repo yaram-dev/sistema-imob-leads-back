@@ -18,12 +18,17 @@ router.get("/", autenticar, listarVendas);
 
 router.get("/:id", autenticar, buscarVenda);
 
-router.post("/", autenticar, uploadContrato.single("contrato"), criarVenda);
+router.post(
+  "/",
+  autenticar,
+  uploadContrato.array("documentos", 10),
+  criarVenda,
+);
 
 router.put(
   "/:id",
   autenticar,
-  uploadContrato.single("contrato"),
+  uploadContrato.array("documentos", 10),
   atualizarVenda,
 );
 

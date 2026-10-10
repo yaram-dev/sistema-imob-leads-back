@@ -2,11 +2,9 @@ generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
-
 datasource db {
   provider = "mysql"
 }
-
 model Empreendimento {
   id   String @id @default(uuid())
   slug String @unique
@@ -30,7 +28,6 @@ model Empreendimento {
 
   @@map("empreendimento")
 }
-
 model Tipo {
   id              String           @id @default(uuid())
   nome            String           @unique
@@ -184,6 +181,15 @@ enum VendaTipo {
   @@map("venda_tipo")
 }
 
+enum VendaDocumentoTipo {
+  FICHA_CADASTRO
+  CONTRATO
+  COMPROVANTE
+  OUTRO
+
+  @@map("venda_documento_tipo")
+}
+
 model Venda {
   id String @id @default(uuid())
 
@@ -200,13 +206,13 @@ model Venda {
 
   tipoVenda VendaTipo @default(AVULSA)
 
-  contratoNome String?
-  contratoUrl  String?
-  observacao   String?
+  observacao String?
 
   status VendaStatus @default(ATIVA)
 
   comissao Comissao?
+
+  documentos VendaDocumento[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -214,6 +220,23 @@ model Venda {
   @@index([leadId])
   @@index([empreendimentoId])
   @@map("venda")
+}
+
+model VendaDocumento {
+  id String @id @default(uuid())
+
+  vendaId String
+  venda   Venda  @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  tipo VendaDocumentoTipo
+
+  nome String
+  url  String
+
+  createdAt DateTime @default(now())
+
+  @@index([vendaId])
+  @@map("venda_documento")
 }
 
 model Comissao {
@@ -245,8 +268,6 @@ enum RecebimentoComissaoStatus {
   PAGA
   ATRASADA
   CANCELADA
-
-  @@map("recebimentocomissao_status")
 }
 
 model RecebimentoComissao {
@@ -262,8 +283,7 @@ model RecebimentoComissao {
   status RecebimentoComissaoStatus @default(PENDENTE)
 
   dataRecebimento DateTime?
-
-  observacao String?
+  observacao      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

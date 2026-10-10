@@ -38,7 +38,6 @@ export const deleteImage = (imageUrl: string): Promise<void> => {
       let publicId = caminho.substring(indice + marcador.length);
 
       publicId = publicId.replace(/^v\d+\//, "");
-
       publicId = publicId.replace(/\.[^/.]+$/, "");
 
       cloudinary.uploader.destroy(
@@ -67,7 +66,7 @@ export const deleteImage = (imageUrl: string): Promise<void> => {
   });
 };
 
-export const uploadContrato = (file: Express.Multer.File): Promise<string> => {
+export const uploadDocumento = (file: Express.Multer.File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const nomeBase = file.originalname
       .replace(/\.pdf$/i, "")
@@ -75,11 +74,11 @@ export const uploadContrato = (file: Express.Multer.File): Promise<string> => {
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
 
-    const publicId = `${nomeBase || "contrato"}-${Date.now()}.pdf`;
+    const publicId = `${nomeBase || "documento"}-${Date.now()}.pdf`;
 
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder: "vendas/contratos",
+        folder: "vendas/documentos",
         resource_type: "raw",
         type: "upload",
         public_id: publicId,
@@ -99,15 +98,13 @@ export const uploadContrato = (file: Express.Multer.File): Promise<string> => {
   });
 };
 
-export const deleteContrato = (contratoUrl: string): Promise<void> => {
+export const deleteDocumento = (documentoUrl: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
-      const url = new URL(contratoUrl);
+      const url = new URL(documentoUrl);
 
       const caminho = url.pathname;
-
       const marcador = "/raw/upload/";
-
       const indice = caminho.indexOf(marcador);
 
       if (indice === -1) {

@@ -4,21 +4,41 @@ import type { CriarVendaInput, AtualizarVendaInput } from "./vendas.schema";
 
 import { AppError } from "../../errors/AppError";
 
-export const getAll = () => {
-  return prisma.venda.findMany({
+import { VendaDocumentoTipo } from "../../generated/prisma";
+
+type NovoDocumentoVenda = {
+  tipo: VendaDocumentoTipo;
+  nome: string;
+  url: string;
+};
+
+type AtualizacaoDocumentosVenda = {
+  adicionar?: NovoDocumentoVenda[];
+  removerIds?: string[];
+};
+
+const incluirVendaCompleta = {
+  lead: true,
+  empreendimento: true,
+  documentos: {
+    orderBy: {
+      createdAt: "asc" as const,
+    },
+  },
+  comissao: {
     include: {
-      lead: true,
-      empreendimento: true,
-      comissao: {
-        include: {
-          recebimentos: {
-            orderBy: {
-              numero: "asc",
-            },
-          },
+      recebimentos: {
+        orderBy: {
+          numero: "asc" as const,
         },
       },
     },
+  },
+};
+
+export const getAll = () => {
+  return prisma.venda.findMany({
+    include: incluirVendaCompleta,
     orderBy: {
       dataVenda: "desc",
     },
@@ -30,23 +50,14 @@ export const getById = (id: string) => {
     where: {
       id,
     },
-    include: {
-      lead: true,
-      empreendimento: true,
-      comissao: {
-        include: {
-          recebimentos: {
-            orderBy: {
-              numero: "asc",
-            },
-          },
-        },
-      },
-    },
+    include: incluirVendaCompleta,
   });
 };
 
-export const create = async (data: CriarVendaInput) => {
+export const create = async (
+  data: CriarVendaInput,
+  documentos: NovoDocumentoVenda[] = [],
+) => {
   if (data.status === "CANCELADA") {
     throw new AppError(
       "Uma venda não pode ser criada diretamente como CANCELADA. Registre a venda primeiro e, se necessário, cancele-a posteriormente.",
@@ -58,22 +69,30 @@ export const create = async (data: CriarVendaInput) => {
     const venda = await tx.venda.create({
       data: {
         leadId: data.leadId,
+
         empreendimentoId: data.empreendimentoId ?? null,
 
         dataVenda: new Date(data.dataVenda),
 
         valorTabela: data.valorTabela,
+
         valorVenda: data.valorVenda,
 
         tipoVenda: data.tipoVenda,
 
-        contratoNome: data.contratoNome ?? null,
-
-        contratoUrl: data.contratoUrl ?? null,
-
         observacao: data.observacao ?? null,
 
         status: data.status ?? "ATIVA",
+
+        ...(documentos.length > 0 && {
+          documentos: {
+            create: documentos.map((documento) => ({
+              tipo: documento.tipo,
+              nome: documento.nome,
+              url: documento.url,
+            })),
+          },
+        }),
       },
     });
 
@@ -90,26 +109,18 @@ export const create = async (data: CriarVendaInput) => {
       where: {
         id: venda.id,
       },
-      include: {
-        lead: true,
-        empreendimento: true,
-        comissao: {
-          include: {
-            recebimentos: {
-              orderBy: {
-                numero: "asc",
-              },
-            },
-          },
-        },
-      },
+      include: incluirVendaCompleta,
     });
 
     return vendaCompleta;
   });
 };
 
-export const update = async (id: string, data: AtualizarVendaInput) => {
+export const update = async (
+  id: string,
+  data: AtualizarVendaInput,
+  documentos: AtualizacaoDocumentosVenda = {},
+) => {
   const vendaExistente = await prisma.venda.findUnique({
     where: {
       id,
@@ -120,6 +131,7 @@ export const update = async (id: string, data: AtualizarVendaInput) => {
           recebimentos: true,
         },
       },
+      documentos: true,
     },
   });
 
@@ -168,7 +180,7 @@ export const update = async (id: string, data: AtualizarVendaInput) => {
   }
 
   if (vendaExistente.status === "CANCELADA") {
-    const camposPermitidos = ["observacao", "contratoNome", "contratoUrl"];
+    const camposPermitidos = ["observacao"];
 
     const camposAlterados = Object.keys(data).filter(
       (campo) => data[campo as keyof AtualizarVendaInput] !== undefined,
@@ -186,62 +198,84 @@ export const update = async (id: string, data: AtualizarVendaInput) => {
     }
   }
 
-  const vendaAtualizada = await prisma.venda.update({
-    where: {
-      id,
-    },
+  const idsParaRemover = documentos.removerIds ?? [];
+  const documentosParaAdicionar = documentos.adicionar ?? [];
 
-    data: {
-      ...(data.empreendimentoId !== undefined && {
-        empreendimentoId: data.empreendimentoId,
-      }),
+  const idsExistentes = new Set(
+    vendaExistente.documentos.map((documento) => documento.id),
+  );
 
-      ...(data.dataVenda !== undefined && {
-        dataVenda: new Date(data.dataVenda),
-      }),
+  const idsInvalidos = idsParaRemover.filter(
+    (documentoId) => !idsExistentes.has(documentoId),
+  );
 
-      ...(data.valorTabela !== undefined && {
-        valorTabela: data.valorTabela,
-      }),
+  if (idsInvalidos.length > 0) {
+    throw new AppError(
+      "Um ou mais documentos informados para remoção não pertencem a esta venda.",
+      400,
+    );
+  }
 
-      ...(data.valorVenda !== undefined && {
-        valorVenda: data.valorVenda,
-      }),
-
-      ...(data.tipoVenda !== undefined && {
-        tipoVenda: data.tipoVenda,
-      }),
-
-      ...(data.contratoNome !== undefined && {
-        contratoNome: data.contratoNome,
-      }),
-
-      ...(data.contratoUrl !== undefined && {
-        contratoUrl: data.contratoUrl,
-      }),
-
-      ...(data.observacao !== undefined && {
-        observacao: data.observacao,
-      }),
-
-      ...(data.status !== undefined && {
-        status: data.status,
-      }),
-    },
-
-    include: {
-      lead: true,
-      empreendimento: true,
-      comissao: {
-        include: {
-          recebimentos: {
-            orderBy: {
-              numero: "asc",
-            },
+  const vendaAtualizada = await prisma.$transaction(async (tx) => {
+    if (idsParaRemover.length > 0) {
+      await tx.vendaDocumento.deleteMany({
+        where: {
+          vendaId: id,
+          id: {
+            in: idsParaRemover,
           },
         },
+      });
+    }
+
+    if (documentosParaAdicionar.length > 0) {
+      await tx.vendaDocumento.createMany({
+        data: documentosParaAdicionar.map((documento) => ({
+          vendaId: id,
+          tipo: documento.tipo,
+          nome: documento.nome,
+          url: documento.url,
+        })),
+      });
+    }
+
+    return tx.venda.update({
+      where: {
+        id,
       },
-    },
+
+      data: {
+        ...(data.empreendimentoId !== undefined && {
+          empreendimentoId: data.empreendimentoId,
+        }),
+
+        ...(data.dataVenda !== undefined && {
+          dataVenda: new Date(data.dataVenda),
+        }),
+
+        ...(data.valorTabela !== undefined && {
+          valorTabela: data.valorTabela,
+        }),
+
+        ...(data.valorVenda !== undefined && {
+          valorVenda: data.valorVenda,
+        }),
+
+        ...(data.tipoVenda !== undefined && {
+          tipoVenda: data.tipoVenda,
+        }),
+
+        ...(data.observacao !== undefined && {
+          observacao: data.observacao,
+        }),
+
+        ...(data.status !== undefined && {
+          status: data.status,
+        }),
+      },
+
+      include: incluirVendaCompleta,
+    });
   });
 
   return vendaAtualizada;
@@ -254,6 +288,7 @@ export const remove = async (id: string) => {
     },
     include: {
       comissao: true,
+      documentos: true,
     },
   });
 
