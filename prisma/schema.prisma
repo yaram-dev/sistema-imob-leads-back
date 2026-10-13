@@ -253,7 +253,7 @@ model Comissao {
 
   valorTotal Decimal @db.Decimal(15, 2)
 
-  observacao String?
+  observacao String? @db.Text
 
   recebimentos RecebimentoComissao[]
 
@@ -283,7 +283,7 @@ model RecebimentoComissao {
   status RecebimentoComissaoStatus @default(PENDENTE)
 
   dataRecebimento DateTime?
-  observacao      String?
+  observacao String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
