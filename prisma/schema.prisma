@@ -206,7 +206,7 @@ model Venda {
 
   tipoVenda VendaTipo @default(AVULSA)
 
-  observacao String?
+  observacao String? @db.Text
 
   status VendaStatus @default(ATIVA)
 

@@ -287,7 +287,8 @@ export async function criarVenda(req: Request, res: Response) {
     }
 
     return res.status(500).json({
-      message: error instanceof Error ? error.message : "Erro ao criar venda.",
+      message:
+        "Não foi possível registrar a venda. Confira os dados e tente novamente. Se o problema persistir, entre em contato com o suporte.",
     });
   }
 }
