@@ -27,24 +27,51 @@ function obterIdParam(req: Request): string | null {
   return id;
 }
 
-function prepararDadosVenda(body: Request["body"]) {
+function prepararDadosCriacaoVenda(body: Request["body"]) {
   return {
     ...body,
-
     empreendimentoId: body.empreendimentoId || null,
-
     dataVenda: body.dataVenda,
-
     valorTabela: Number(body.valorTabela),
-
     valorVenda: Number(body.valorVenda),
-
     tipoVenda: body.tipoVenda,
-
     observacao: body.observacao || null,
-
     status: body.status || "ATIVA",
   };
+}
+
+function prepararDadosAtualizacaoVenda(body: Request["body"]) {
+  const dados: Record<string, unknown> = {};
+
+  if (body.empreendimentoId !== undefined) {
+    dados.empreendimentoId = body.empreendimentoId || null;
+  }
+
+  if (body.dataVenda !== undefined) {
+    dados.dataVenda = body.dataVenda;
+  }
+
+  if (body.valorTabela !== undefined) {
+    dados.valorTabela = Number(body.valorTabela);
+  }
+
+  if (body.valorVenda !== undefined) {
+    dados.valorVenda = Number(body.valorVenda);
+  }
+
+  if (body.tipoVenda !== undefined) {
+    dados.tipoVenda = body.tipoVenda;
+  }
+
+  if (body.observacao !== undefined) {
+    dados.observacao = body.observacao || null;
+  }
+
+  if (body.status !== undefined) {
+    dados.status = body.status;
+  }
+
+  return dados;
 }
 
 function obterArquivos(req: Request): Express.Multer.File[] {
@@ -243,8 +270,7 @@ export async function criarVenda(req: Request, res: Response) {
 
   try {
     const dados = {
-      ...prepararDadosVenda(req.body),
-
+      ...prepararDadosCriacaoVenda(req.body),
       leadId: req.body.leadId,
     };
 
@@ -317,13 +343,7 @@ export async function atualizarVenda(req: Request, res: Response) {
       });
     }
 
-    const dadosBase = prepararDadosVenda(req.body);
-
-    const dados = {
-      ...dadosBase,
-
-      leadId: undefined,
-    };
+    const dados = prepararDadosAtualizacaoVenda(req.body);
 
     delete (dados as Record<string, unknown>).tiposDocumento;
     delete (dados as Record<string, unknown>).removerDocumentoIds;
