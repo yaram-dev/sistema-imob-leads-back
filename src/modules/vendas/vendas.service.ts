@@ -69,19 +69,12 @@ export const create = async (
     const venda = await tx.venda.create({
       data: {
         leadId: data.leadId,
-
         empreendimentoId: data.empreendimentoId ?? null,
-
         dataVenda: new Date(data.dataVenda),
-
         valorTabela: data.valorTabela,
-
         valorVenda: data.valorVenda,
-
         tipoVenda: data.tipoVenda,
-
         observacao: data.observacao ?? null,
-
         status: data.status ?? "ATIVA",
 
         ...(documentos.length > 0 && {
@@ -105,14 +98,12 @@ export const create = async (
       },
     });
 
-    const vendaCompleta = await tx.venda.findUnique({
+    return tx.venda.findUnique({
       where: {
         id: venda.id,
       },
       include: incluirVendaCompleta,
     });
-
-    return vendaCompleta;
   });
 };
 
@@ -157,24 +148,25 @@ export const update = async (
     }
   }
 
-  if (
-    vendaExistente.comissao &&
+  const possuiRecebimentosAtivos =
+    vendaExistente.comissao?.recebimentos.some(
+      (recebimento) => recebimento.status !== "CANCELADA",
+    ) ?? false;
+
+  const estaAlterandoValor =
     data.valorVenda !== undefined &&
-    data.valorVenda !== Number(vendaExistente.valorVenda)
-  ) {
-    throw new AppError(
-      "O valor da venda não pode ser alterado porque já existe uma comissão registrada para esta venda.",
-      409,
-    );
-  }
+    data.valorVenda !== Number(vendaExistente.valorVenda);
+
+  const estaAlterandoTipo =
+    data.tipoVenda !== undefined && data.tipoVenda !== vendaExistente.tipoVenda;
 
   if (
     vendaExistente.comissao &&
-    data.tipoVenda !== undefined &&
-    data.tipoVenda !== vendaExistente.tipoVenda
+    possuiRecebimentosAtivos &&
+    (estaAlterandoValor || estaAlterandoTipo)
   ) {
     throw new AppError(
-      "O tipo da venda não pode ser alterado porque já existe uma comissão registrada para esta venda.",
+      "Não é possível alterar o valor ou o tipo da venda enquanto houver recebimentos ativos. Corrija os recebimentos antes de alterar os dados comerciais.",
       409,
     );
   }
@@ -216,7 +208,7 @@ export const update = async (
     );
   }
 
-  const vendaAtualizada = await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     if (idsParaRemover.length > 0) {
       await tx.vendaDocumento.deleteMany({
         where: {
@@ -277,8 +269,6 @@ export const update = async (
       include: incluirVendaCompleta,
     });
   });
-
-  return vendaAtualizada;
 };
 
 export const remove = async (id: string) => {
