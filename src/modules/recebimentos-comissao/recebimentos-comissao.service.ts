@@ -166,21 +166,19 @@ export const update = async (id: string, data: AtualizarRecebimentoInput) => {
     throw new AppError("Recebimento não encontrado.", 404);
   }
 
-  if (
-    recebimento.status === "PAGA" &&
-    (data.valor !== undefined ||
-      data.vencimento !== undefined ||
-      data.dataRecebimento !== undefined ||
-      (data.status !== undefined && data.status !== "CANCELADA"))
-  ) {
-    throw new AppError(
-      "Um recebimento já pago não pode ter seus dados financeiros alterados. Para corrigir o registro, mantenha o histórico e faça o ajuste adequado.",
-      409,
-    );
-  }
-
   const novoStatus =
     data.status !== undefined ? data.status : recebimento.status;
+
+  if (
+    recebimento.status === "PAGA" &&
+    novoStatus === "CANCELADA" &&
+    !data.observacao?.trim()
+  ) {
+    throw new AppError(
+      "Informe o motivo do cancelamento do recebimento pago.",
+      400,
+    );
+  }
 
   if (data.status !== undefined && data.status !== recebimento.status) {
     const transicoesPermitidas: Record<typeof recebimento.status, string[]> = {
