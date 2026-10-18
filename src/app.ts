@@ -5,9 +5,22 @@ import { errorHandler } from "./middlewares/errorHandler";
 
 const app = express();
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "https://imobiliaria-leads-front.vercel.app",
+  "https://jackmaiaimoveis.com.br",
+  "http://localhost:3000",
+].filter((origin) => Boolean(origin));
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Origem não permitida pelo CORS"));
+      }
+    },
     credentials: true,
   }),
 );
