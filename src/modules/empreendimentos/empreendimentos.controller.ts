@@ -5,12 +5,47 @@ import {
   updateEmpreendimentoSchema,
 } from "./empreendimentos.schema";
 import { parseDescricao } from "../../utils/parseDescricao";
-import { deleteImage, uploadImage } from "../../services/cloudinary.service";
+import {
+  deleteImage,
+  deleteVideo,
+  uploadVideo,
+} from "../../services/cloudinary.service";
 import { uploadImages } from "../../utils/uploadImagens";
 import { createSlug } from "../../utils/createSlug";
 
 const safeSlug = (slug: string | string[]) =>
   Array.isArray(slug) ? slug[0] : slug;
+
+type ArquivosEmpreendimento = {
+  imagens: Express.Multer.File[];
+  video?: Express.Multer.File;
+};
+
+function obterArquivos(req: Request): ArquivosEmpreendimento {
+  const arquivos = req.files;
+
+  // Compatibilidade temporária com o formato antigo do Multer.
+  if (Array.isArray(arquivos)) {
+    return {
+      imagens: arquivos,
+    };
+  }
+
+  const arquivosPorCampo = arquivos as
+    | { [fieldname: string]: Express.Multer.File[] }
+    | undefined;
+
+  return {
+    imagens: arquivosPorCampo?.imagens ?? [],
+    video: arquivosPorCampo?.video?.[0],
+  };
+}
+
+function videoMp4Valido(file?: Express.Multer.File): boolean {
+  if (!file) return true;
+
+  return file.mimetype === "video/mp4" && /\.mp4$/i.test(file.originalname);
+}
 
 function parseImagensExistentes(valor: unknown): string[] {
   if (!valor) return [];
@@ -61,6 +96,14 @@ export const getBySlug = async (req: Request, res: Response) => {
 };
 
 export const create = async (req: Request, res: Response) => {
+  const arquivos = obterArquivos(req);
+
+  if (!videoMp4Valido(arquivos.video)) {
+    return res.status(400).json({
+      message: "O vídeo deve estar no formato MP4.",
+    });
+  }
+
   const descricao = parseDescricao(req.body.descricao);
 
   const validacao = createEmpreendimentoSchema.safeParse({
@@ -80,12 +123,15 @@ export const create = async (req: Request, res: Response) => {
     });
   }
 
-  const files = Array.isArray((req as any).files) ? (req as any).files : [];
-
   let imagem: string[] = [];
+  let video: string | null = null;
 
   try {
-    imagem = await uploadImages(files);
+    imagem = await uploadImages(arquivos.imagens);
+
+    if (arquivos.video) {
+      video = await uploadVideo(arquivos.video);
+    }
 
     const slug = createSlug(validacao.data.nome);
 
@@ -94,12 +140,11 @@ export const create = async (req: Request, res: Response) => {
       slug,
       imagem,
       imagemCapa: req.body.imagemCapa,
+      video,
     });
 
     return res.status(201).json(newItem);
   } catch (error) {
-    // Se o upload ocorreu, mas a gravação no banco falhou,
-    // remove as imagens recém-enviadas para evitar arquivos órfãos.
     if (imagem.length > 0) {
       await Promise.all(
         imagem.map(async (url) => {
@@ -113,6 +158,17 @@ export const create = async (req: Request, res: Response) => {
           }
         }),
       );
+    }
+
+    if (video) {
+      try {
+        await deleteVideo(video);
+      } catch (deleteError) {
+        console.error(
+          "Erro ao remover vídeo órfão do Cloudinary:",
+          deleteError,
+        );
+      }
     }
 
     throw error;
@@ -130,6 +186,14 @@ export const update = async (req: Request, res: Response) => {
         error instanceof Error
           ? error.message
           : "As imagens existentes possuem formato inválido.",
+    });
+  }
+
+  const arquivos = obterArquivos(req);
+
+  if (!videoMp4Valido(arquivos.video)) {
+    return res.status(400).json({
+      message: "O vídeo deve estar no formato MP4.",
     });
   }
 
@@ -152,7 +216,9 @@ export const update = async (req: Request, res: Response) => {
     });
   }
 
-  const itemAtual = await service.getBySlug(safeSlug(req.params.slug));
+  const slug = safeSlug(req.params.slug);
+
+  const itemAtual = await service.getBySlug(slug);
 
   if (!itemAtual) {
     return res.status(404).json({
@@ -166,18 +232,27 @@ export const update = async (req: Request, res: Response) => {
       )
     : [];
 
-  const files = Array.isArray((req as any).files) ? (req as any).files : [];
+  const videoAntigo = itemAtual.video;
 
   let novasImagens: string[] = [];
+  let novoVideo: string | null = null;
 
   try {
-    novasImagens = await uploadImages(files);
+    novasImagens = await uploadImages(arquivos.imagens);
+
+    if (arquivos.video) {
+      novoVideo = await uploadVideo(arquivos.video);
+    }
 
     const imagensFinal = [...imagensExistentes, ...novasImagens];
 
-    const item = await service.update(safeSlug(req.params.slug), {
+    // Se nenhum vídeo novo for enviado, mantém o vídeo atual.
+    const videoFinal = novoVideo ?? videoAntigo;
+
+    const item = await service.update(slug, {
       ...validacao.data,
       imagem: imagensFinal,
+      video: videoFinal,
     });
 
     const imagensRemovidas = imagensAntigas.filter(
@@ -199,6 +274,15 @@ export const update = async (req: Request, res: Response) => {
       );
     }
 
+    // O vídeo antigo só é excluído depois que o novo foi salvo no banco.
+    if (novoVideo && videoAntigo) {
+      try {
+        await deleteVideo(videoAntigo);
+      } catch (error) {
+        console.error("Erro ao remover vídeo antigo do Cloudinary:", error);
+      }
+    }
+
     return res.json(item);
   } catch (error) {
     if (novasImagens.length > 0) {
@@ -214,6 +298,17 @@ export const update = async (req: Request, res: Response) => {
           }
         }),
       );
+    }
+
+    if (novoVideo) {
+      try {
+        await deleteVideo(novoVideo);
+      } catch (deleteError) {
+        console.error(
+          "Erro ao remover novo vídeo órfão do Cloudinary:",
+          deleteError,
+        );
+      }
     }
 
     throw error;
@@ -237,6 +332,8 @@ export const remove = async (req: Request, res: Response) => {
       )
     : [];
 
+  const video = item.video;
+
   await service.remove(slug);
 
   if (imagens.length > 0) {
@@ -252,6 +349,17 @@ export const remove = async (req: Request, res: Response) => {
         }
       }),
     );
+  }
+
+  if (video) {
+    try {
+      await deleteVideo(video);
+    } catch (error) {
+      console.error(
+        "Erro ao remover vídeo do empreendimento do Cloudinary:",
+        error,
+      );
+    }
   }
 
   return res.json({

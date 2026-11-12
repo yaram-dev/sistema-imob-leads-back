@@ -138,3 +138,71 @@ export const deleteDocumento = (documentoUrl: string): Promise<void> => {
     }
   });
 };
+
+export const uploadVideo = (file: Express.Multer.File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "empreendimentos/videos",
+        resource_type: "video",
+        type: "upload",
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result!.secure_url);
+        }
+      },
+    );
+
+    stream.end(file.buffer);
+  });
+};
+
+export const deleteVideo = (videoUrl: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(videoUrl);
+
+      const caminho = url.pathname;
+      const marcador = "/video/upload/";
+      const indice = caminho.indexOf(marcador);
+
+      if (indice === -1) {
+        reject(
+          new Error("Não foi possível identificar o vídeo no Cloudinary."),
+        );
+        return;
+      }
+
+      let publicId = caminho.substring(indice + marcador.length);
+
+      publicId = publicId.replace(/^v\d+\//, "");
+      publicId = publicId.replace(/\.[^/.]+$/, "");
+
+      cloudinary.uploader.destroy(
+        publicId,
+        {
+          resource_type: "video",
+          type: "upload",
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          if (result?.result === "not found") {
+            resolve();
+            return;
+          }
+
+          resolve();
+        },
+      );
+    } catch (error) {
+      reject(error);
+    }
+  });
+};

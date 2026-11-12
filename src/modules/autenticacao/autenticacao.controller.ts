@@ -16,6 +16,15 @@ import {
 
 import { AppError } from "../../errors/AppError";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? ("none" as const) : ("lax" as const),
+  path: "/",
+};
+
 export async function entrar(req: Request, res: Response) {
   const validacao = loginSchema.safeParse(req.body);
 
@@ -30,11 +39,8 @@ export async function entrar(req: Request, res: Response) {
     const resultado = await login(validacao.data.email, validacao.data.senha);
 
     res.cookie("admin_token", resultado.token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      ...cookieOptions,
       maxAge: 8 * 60 * 60 * 1000,
-      path: "/",
     });
 
     return res.json({
@@ -56,12 +62,7 @@ export async function entrar(req: Request, res: Response) {
 }
 
 export function sair(req: Request, res: Response) {
-  res.clearCookie("admin_token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-  });
+  res.clearCookie("admin_token", cookieOptions);
 
   return res.json({
     message: "Logout realizado com sucesso.",

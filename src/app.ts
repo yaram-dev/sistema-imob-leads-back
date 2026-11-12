@@ -10,6 +10,7 @@ const allowedOrigins = [
   "https://imobiliaria-leads-front.vercel.app",
   "https://jackmaiaimoveis.com.br",
   "http://localhost:3000",
+  "http://localhost:3002",
 ].filter((origin) => Boolean(origin));
 
 app.use(

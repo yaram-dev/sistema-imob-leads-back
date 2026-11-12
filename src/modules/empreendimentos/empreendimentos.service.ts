@@ -30,6 +30,7 @@ export const create = (data: {
   descricao: string[];
   imagem: string[];
   imagemCapa?: string;
+  video?: string | null;
 }) => {
   return prisma.empreendimento.create({
     data: {
@@ -41,6 +42,7 @@ export const create = (data: {
       descricao: data.descricao,
       imagem: data.imagem,
       imagemCapa: data.imagemCapa,
+      video: data.video,
     },
     include: {
       tipo: true,
@@ -59,6 +61,7 @@ export const update = (
     descricao: string[];
     imagem: string[];
     imagemCapa?: string;
+    video?: string | null;
   }>,
 ) => {
   return prisma.empreendimento.update({

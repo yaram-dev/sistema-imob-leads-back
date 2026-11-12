@@ -9,3 +9,10 @@ export const upload = multer({
 export const uploadContrato = multer({
   storage,
 });
+
+export const uploadEmpreendimento = multer({
+  storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024,
+  },
+});

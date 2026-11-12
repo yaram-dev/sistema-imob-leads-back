@@ -20,6 +20,7 @@ model Empreendimento {
   descricao  Json
   imagem     Json
   imagemCapa String?
+  video      String?
 
   createdAt DateTime @default(now())
 
